@@ -1,40 +1,39 @@
 import React , {Component} from 'react';
-import Todos from '../../components/Todos/Todos';
+import * as firebase from 'firebase';
+import {connect} from 'react-redux';
+
+import TodosList from '../../components/TodosList/TodosList';
 import Input from '../../components/Input/Input';
 import Spinner from '../../components/Spinner/Spinner';
-import * as firebase from 'firebase';
-import './Layout.css';
+import * as actions from '../../store/actions/index';
 
-class Layout extends Component{
+class Todos extends Component{
     constructor(){
         super();
+        console.log("asds")
         this.state = {
             input : '',
-            todos : [],
             editing : false,
             loading : true
         }
         this.editingId = null;
-
-        const config = {
-            apiKey: "AIzaSyBbYLdLgS-QDx68vUc1PnENNvrcfstMuJw",
-            authDomain: "todo-app-with-firebasedb.firebaseapp.com",
-            databaseURL: "https://todo-app-with-firebasedb.firebaseio.com",
-            projectId: "todo-app-with-firebasedb",
-            storageBucket: "todo-app-with-firebasedb.appspot.com",
-            messagingSenderId: "960398132063"
-        };
-        firebase.initializeApp(config);
         
         this.db = firebase.database();
+    }
 
-        this.db.ref().child('todos').on('value', snapshot => {
+    componentDidMount(){
+        this.db.ref()
+        .child('todos')
+        .orderByChild('uid')
+        .equalTo(this.props.uid)
+        .on('value', snapshot => {
             const todosObj = snapshot.val();
             const todos = [];
             for(let todo in todosObj){
                 todos.push({id : todo , todo : todosObj[todo].todo})
             }
             this.setState({todos, loading : false })
+            this.props.onSetTodos(todos);
         })
     }
 
@@ -46,15 +45,16 @@ class Layout extends Component{
         const input = this.state.input;
         if(input !== ''){
             if(this.editingId !== null){
-                this.db.ref(`todos/${this.editingId}/`).set({
-                    todo : input
-                })                
+                let updateObj = {};
+                updateObj[`todos/${this.editingId}/todo`] = input;
+                this.db.ref().update(updateObj)                
                 this.setState({editing : false});
                 this.editingId = null;
             }
             else{
                 this.db.ref('todos/').push({
-                    todo : input
+                    todo : input,
+                    uid : this.props.uid
                 });
             }
             this.setState({ input : '' });
@@ -87,8 +87,13 @@ class Layout extends Component{
         });
         this.editingId = todo.id;
     }
+
+    logoutHandler = () => {
+        this.props.history.replace('/logout')
+    }
     
     render (){
+        console.log(this.props)
         let btnValue = "Add";
         let btnClass = "primary";
         if(this.state.editing){
@@ -113,7 +118,7 @@ class Layout extends Component{
             todos = <Spinner/>
         else if(this.state.todos && this.state.todos.length > 0){
             todos = (
-                <Todos
+                <TodosList
                     todos = {this.state.todos}
                     editTodo = {this.editTodoHandler}
                     deleteTodo = {this.deleteTodoHandler}/>
@@ -140,10 +145,30 @@ class Layout extends Component{
 
                 {deleteAllButton}
                 
+                {this.props.isLoggedIn && !this.state.loading ?                 
+                <Input 
+                    type= "button" 
+                    onClick={this.logoutHandler} 
+                    value = "Logout" 
+                    className="btn btn-danger"/> : null}
+
                 {todos}
             </div>
         )
     }
 }
 
-export default Layout;
+const mapStateToProps = state => {
+    return{
+        isLoggedIn : state.auth.isLoggedIn,
+        uid : state.auth.uid
+    }   
+}
+
+const mapDispatchToProps = dispatch => {
+    return{
+        onSetTodos : (todos) => dispatch(actions.setTodos(todos))
+    }   
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Todos);
