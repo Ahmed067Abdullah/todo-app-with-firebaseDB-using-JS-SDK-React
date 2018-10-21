@@ -72,7 +72,15 @@ class Todos extends Component{
     }
 
     deleteAllTodosHandler = () => {
-        this.db.ref('todos/').remove();
+        this.db.ref('todos/')
+            .orderByChild('uid')
+            .equalTo(this.props.uid)
+            .once('value', snapshot => {
+                const retObj = snapshot.val();
+                for(let key in retObj){
+                    this.db.ref(`todos/${key}`).remove()
+                }
+            });
         this.setState({ editing : false });
         this.editingId = null
     }
@@ -142,7 +150,7 @@ class Todos extends Component{
                     onClick={this.saveTodoHandler} 
                     value = {btnValue} 
                     className={btnClass}/>
-
+                <br/>
                 {deleteAllButton}
                 
                 {this.props.isLoggedIn && !this.state.loading ?                 
