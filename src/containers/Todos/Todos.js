@@ -101,7 +101,6 @@ class Todos extends Component{
     }
     
     render (){
-        console.log(this.props)
         let btnValue = "Add";
         let btnClass = "primary";
         if(this.state.editing){
